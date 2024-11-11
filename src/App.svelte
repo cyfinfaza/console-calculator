@@ -1,6 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { evaluateLines } from "./lib/evaluator";
+  import { downloadAsFile } from "./lib/helpers";
 
   let consoleView;
   let sizeTest;
@@ -11,6 +12,8 @@
     result: "normal",
     error: "error",
   };
+
+  let dlStr = "";
 
   function processConsole() {
     localStorage.setItem("window_snapshot", consoleView.innerHTML);
@@ -26,6 +29,7 @@
         lines.push(line);
       }
     });
+    dlStr = lines.join("\n");
     let resultValues = evaluateLines(lines);
     let ypos = 0;
     results = lines.map((line, ind) => {
@@ -41,7 +45,7 @@
         content: resultValues[ind],
       };
     });
-    console.log(results);
+    // console.log(results);
     let setTitle = null;
     for (let i = results.length - 1; i >= 0; i--) {
       if (results[i].content.type === "result") {
@@ -49,10 +53,14 @@
         break;
       }
     }
-    document.title = setTitle || "Console Calculator";
+    document.title = setTitle || "console calculator";
   }
 
   onMount(() => {
+    console.log(
+      "%ccc",
+      "background-color: #8FF; color: black; padding: 8px; border-radius: 6px; font-family: monospace; font-weight: 900;"
+    );
     let preload = localStorage.getItem("window_snapshot");
     if (preload) consoleView.innerHTML = preload;
     processConsole();
@@ -69,6 +77,24 @@
         consoleView.innerHTML = "";
         processConsole();
       }}>clear</button
+    >
+    <button
+      on:click={() => {
+        downloadAsFile(
+          dlStr,
+          "cc-" +
+            new Date()
+              .toLocaleString("en-GB", {
+                day: "2-digit",
+                month: "long",
+                year: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              })
+              .replace(/,|\s|:/g, "-")
+        );
+      }}>save</button
     >
     <button
       on:click={() => {

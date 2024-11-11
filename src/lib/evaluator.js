@@ -18,7 +18,8 @@ export function evaluateLines(lines) {
     exp: (x) => Math.exp(x),
   };
 
-  for (const line of lines) {
+  for (let line of lines) {
+    line = line.split("//")[0];
     if (!line) {
       results.push({ type: "null", value: "" });
       continue;
@@ -32,26 +33,34 @@ export function evaluateLines(lines) {
       // Replace "^" with "**" for exponentiation
       expression = expression.replace(/\^/g, "**");
 
-      // Replace variables in the expression with their values
-      for (const [key, value] of Object.entries(variables)) {
-        const varRegex = new RegExp(`\\b${key}\\b`, "g");
-        expression = expression.replace(varRegex, value);
-      }
-
       // Parse assignments
       if (/^[a-zA-Z_]\w*\s*=/.test(expression)) {
         // Split on the first "="
         const [varName, varExpression] = expression.split(/=(.+)/);
         const trimmedName = varName.trim();
 
-        // Evaluate the right-hand side of the assignment
-        const result = evaluateExpression(varExpression.trim(), mathFunctions);
+        // Evaluate the right-hand side of the assignment without variable replacement
+        const result = evaluateExpression(
+          varExpression.trim(),
+          mathFunctions,
+          variables
+        );
         variables[trimmedName] = result;
         lastResult = result;
         results.push({ type: "result", value: result });
       } else {
+        // Replace variables in the expression with their values (excluding assignments)
+        for (const [key, value] of Object.entries(variables)) {
+          const varRegex = new RegExp(`\\b${key}\\b`, "g");
+          if (typeof value === "string") {
+            expression = expression.replace(varRegex, JSON.stringify(value));
+          } else {
+            expression = expression.replace(varRegex, value);
+          }
+        }
+
         // Evaluate as a standalone expression
-        const result = evaluateExpression(expression, mathFunctions);
+        const result = evaluateExpression(expression, mathFunctions, variables);
         lastResult = result;
         results.push({ type: "result", value: result });
       }
@@ -62,13 +71,17 @@ export function evaluateLines(lines) {
   return results;
 }
 
-// Helper to evaluate an expression with math functions and bitwise operations
-function evaluateExpression(expression, mathFunctions) {
+// Helper to evaluate an expression with math functions and prevent global access
+function evaluateExpression(expression, mathFunctions, variables) {
   // Create a new function that can access math functions and evaluates the expression
   return Function(
     '"use strict"; ' +
+      "const window = undefined; const document = undefined; const fetch = undefined; const alert = undefined; const prompt = undefined;" +
       Object.entries(mathFunctions)
         .map(([name, fn]) => `const ${name} = ${fn};`)
+        .join("\n") +
+      Object.keys(variables)
+        .map((key) => `const ${key} = ${JSON.stringify(variables[key])};`)
         .join("\n") +
       `return (${expression});`
   )();
