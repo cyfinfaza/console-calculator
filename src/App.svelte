@@ -56,6 +56,7 @@
     let preload = localStorage.getItem("window_snapshot");
     if (preload) consoleView.innerHTML = preload;
     processConsole();
+    setTimeout(processConsole, 100);
   });
 </script>
 
